@@ -5,12 +5,14 @@ interface Props {
   title: string;
   bodyClass?: string;
   description?: string;
+  socialImage?: string;
 }
 
 const {
   title,
   bodyClass = '',
   description = 'Plataforma para registrar y gestionar pagos de exámenes.',
+  socialImage = '/favicon-money.svg',
 } = Astro.props;
 ---
 
@@ -23,10 +25,13 @@ const {
   <meta property="og:type" content="website" />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
+  <meta property="og:image" content={socialImage} />
+  <meta property="og:image:alt" content={title} />
   <meta property="og:locale" content="es_VE" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={socialImage} />
   <link rel="icon" type="image/svg+xml" href="/favicon-money.svg" />
   <title>{title}</title>
 </head>
