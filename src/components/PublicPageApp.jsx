@@ -26,13 +26,14 @@ const ID_VALUE = '3166298';
 export default function PublicPageApp() {
   const [exams, setExams] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [paymentTypes, setPaymentTypes] = useState([]);
   const [selectedExam, setSelectedExam] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [loadingExams, setLoadingExams] = useState(true);
   const [loadingPayments, setLoadingPayments] = useState(true);
-  const [form, setForm] = useState({ names: '', reference: '', note: '' });
+  const [form, setForm] = useState({ names: '', reference: '', note: '', paymentTypeId: '' });
   const [fileName, setFileName] = useState('PNG, JPG hasta 5MB');
   const [toasts, setToasts] = useState([]);
 
@@ -42,6 +43,15 @@ export default function PublicPageApp() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
+  };
+
+  const selectedPaymentType = paymentTypes.find((type) => type.id === form.paymentTypeId) || null;
+  const isCashPayment = selectedPaymentType?.code === 'efectivo';
+  const requiresReference = selectedPaymentType?.requires_reference ?? true;
+
+  const getDefaultPaymentTypeId = (types) => {
+    const mobileType = types.find((type) => type.code === 'pago_movil');
+    return mobileType?.id || types[0]?.id || '';
   };
 
   const copyToClipboard = async (text, fieldName) => {
@@ -103,7 +113,7 @@ export default function PublicPageApp() {
     setLoadingPayments(true);
     const { data, error } = await supabase
       .from('payments')
-      .select('names, reference, created_at, status, exams!inner(title, active)')
+      .select('names, reference, created_at, status, exams!inner(title, active), payment_types(name, code)')
       .in('status', ['approved', 'pending'])
       .eq('exams.active', true)
       .order('created_at', { ascending: false });
@@ -119,9 +129,35 @@ export default function PublicPageApp() {
     setLoadingPayments(false);
   };
 
+  const loadPaymentTypes = async () => {
+    const { data, error } = await supabase
+      .from('payment_types')
+      .select('id, code, name, requires_reference')
+      .eq('active', true)
+      .order('name', { ascending: true });
+
+    if (error) {
+      addToast('No se pudieron cargar los tipos de pago', 'error');
+      setPaymentTypes([]);
+      return;
+    }
+
+    const types = data || [];
+    setPaymentTypes(types);
+
+    setForm((prev) => {
+      const alreadyExists = types.some((type) => type.id === prev.paymentTypeId);
+      return {
+        ...prev,
+        paymentTypeId: alreadyExists ? prev.paymentTypeId : getDefaultPaymentTypeId(types),
+      };
+    });
+  };
+
   useEffect(() => {
     loadExams();
     loadPayments();
+    loadPaymentTypes();
   }, []);
 
   const handleSubmit = async (event) => {
@@ -129,6 +165,16 @@ export default function PublicPageApp() {
 
     if (!selectedExam) {
       addToast('Por favor selecciona un examen primero', 'error');
+      return;
+    }
+
+    if (!form.paymentTypeId) {
+      addToast('Selecciona un tipo de pago', 'error');
+      return;
+    }
+
+    if (requiresReference && !form.reference.trim()) {
+      addToast('La referencia es obligatoria para Pago Móvil', 'error');
       return;
     }
 
@@ -140,11 +186,12 @@ export default function PublicPageApp() {
     const { error } = await supabase.from('payments').insert([
       {
         names: form.names,
-        reference: form.reference,
+        reference: requiresReference ? form.reference.trim() : null,
         note: form.note,
         exam_id: selectedExam.id,
         amount: selectedExam.price,
         status: 'pending',
+        payment_type_id: form.paymentTypeId,
       },
     ]);
 
@@ -155,7 +202,12 @@ export default function PublicPageApp() {
     }
 
     addToast('¡Pago registrado! Espera la aprobación del admin.', 'success');
-    setForm({ names: '', reference: '', note: '' });
+    setForm((prev) => ({
+      names: '',
+      reference: '',
+      note: '',
+      paymentTypeId: prev.paymentTypeId,
+    }));
     setFileName('PNG, JPG hasta 5MB');
     setShowForm(false);
     setIsSubmitting(false);
@@ -229,6 +281,8 @@ export default function PublicPageApp() {
                 const isApproved = payment.status === 'approved';
                 const statusText = isApproved ? 'Confirmado' : 'Pendiente';
                 const date = new Date(payment.created_at).toLocaleDateString();
+                const hasReference = Boolean(payment.reference);
+                const paymentTypeName = payment.payment_types?.name || 'Pago';
                 return (
                   <li
                     key={`${payment.reference}-${idx}`}
@@ -247,7 +301,7 @@ export default function PublicPageApp() {
                       <div>
                         <p className="font-semibold text-slate-100">{payment.names}</p>
                         <p className="text-xs text-slate-400">
-                          Ref: ****{String(payment.reference).slice(-4)} • {payment.exams?.title || 'Examen'}
+                          {hasReference ? `Ref: ****${String(payment.reference).slice(-4)}` : 'Sin referencia'} • {paymentTypeName} • {payment.exams?.title || 'Examen'}
                         </p>
                         <p className={`text-xs font-medium md:hidden ${isApproved ? 'text-emerald-400' : 'text-amber-400'}`}>
                           {statusText}
@@ -333,6 +387,23 @@ export default function PublicPageApp() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Tipo de Pago</label>
+                <select
+                  required
+                  value={form.paymentTypeId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, paymentTypeId: e.target.value, reference: '' }))}
+                  className="w-full px-4 py-3 bg-slate-900 rounded-lg border border-slate-600 text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                >
+                  {paymentTypes.length === 0 && <option value="">No hay tipos de pago</option>}
+                  {paymentTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
                   Nombres de los integrantes (separados por coma)
                 </label>
@@ -346,20 +417,22 @@ export default function PublicPageApp() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Número de Referencia (Últimos 6 dígitos)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.reference}
-                  onChange={(e) => setForm((prev) => ({ ...prev, reference: e.target.value }))}
-                  placeholder="Ej: 123456"
-                  pattern="[0-9]{4,10}"
-                  className="w-full px-4 py-3 bg-slate-900 rounded-lg border border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                />
-              </div>
+              {requiresReference && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Número de Referencia (Últimos 6 dígitos)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.reference}
+                    onChange={(e) => setForm((prev) => ({ ...prev, reference: e.target.value }))}
+                    placeholder="Ej: 123456"
+                    pattern="[0-9]{4,10}"
+                    className="w-full px-4 py-3 bg-slate-900 rounded-lg border border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Nota / Observación (Opcional)</label>
@@ -372,32 +445,34 @@ export default function PublicPageApp() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Capture o Comprobante (Opcional)</label>
-                <label className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-600 border-dashed rounded-lg hover:border-indigo-400 transition-colors bg-slate-900 cursor-pointer">
-                  <div className="space-y-1 text-center">
-                    <ImageIcon className="mx-auto h-12 w-12 text-slate-500" />
-                    <div className="flex text-sm text-slate-400 justify-center">
-                      <span className="relative rounded-md font-medium text-indigo-400 hover:text-indigo-300 focus-within:outline-none">
-                        Sube un archivo
-                      </span>
+              {!isCashPayment && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Capture o Comprobante (Opcional)</label>
+                  <label className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-600 border-dashed rounded-lg hover:border-indigo-400 transition-colors bg-slate-900 cursor-pointer">
+                    <div className="space-y-1 text-center">
+                      <ImageIcon className="mx-auto h-12 w-12 text-slate-500" />
+                      <div className="flex text-sm text-slate-400 justify-center">
+                        <span className="relative rounded-md font-medium text-indigo-400 hover:text-indigo-300 focus-within:outline-none">
+                          Sube un archivo
+                        </span>
+                      </div>
+                      <input
+                        name="file-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          setFileName(file ? file.name : 'PNG, JPG hasta 5MB');
+                        }}
+                      />
+                      <p className={`text-xs ${fileName === 'PNG, JPG hasta 5MB' ? 'text-slate-500' : 'text-indigo-400 font-medium'}`}>
+                        {fileName}
+                      </p>
                     </div>
-                    <input
-                      name="file-upload"
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        setFileName(file ? file.name : 'PNG, JPG hasta 5MB');
-                      }}
-                    />
-                    <p className={`text-xs ${fileName === 'PNG, JPG hasta 5MB' ? 'text-slate-500' : 'text-indigo-400 font-medium'}`}>
-                      {fileName}
-                    </p>
-                  </div>
-                </label>
-              </div>
+                  </label>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button

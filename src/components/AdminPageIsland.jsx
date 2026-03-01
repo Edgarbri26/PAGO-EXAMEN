@@ -13,6 +13,8 @@ export default function AdminPageIsland() {
     const paymentsByExamList = document.getElementById('payments-by-exam-list');
     const copyExamListBtn = document.getElementById('copy-exam-list-btn');
     const paymentEditSection = document.getElementById('payment-edit-section');
+    const editPaymentType = document.getElementById('edit-payment-type');
+    const editPaymentReferenceWrap = document.getElementById('edit-payment-reference-wrap');
     const editPaymentNames = document.getElementById('edit-payment-names');
     const editPaymentReference = document.getElementById('edit-payment-reference');
     const editPaymentNote = document.getElementById('edit-payment-note');
@@ -24,13 +26,68 @@ export default function AdminPageIsland() {
 
     let allPaymentsForExam = [];
     let editingPaymentId = null;
+    let availablePaymentTypes = [];
+
+    function getPaymentTypeById(id) {
+      return availablePaymentTypes.find((type) => type.id === id) || null;
+    }
+
+    function updateEditReferenceVisibility() {
+      const selectedType = getPaymentTypeById(editPaymentType.value);
+      const requiresReference = selectedType?.requires_reference ?? true;
+
+      if (requiresReference) {
+        editPaymentReferenceWrap.classList.remove('hidden');
+      } else {
+        editPaymentReferenceWrap.classList.add('hidden');
+        editPaymentReference.value = '';
+      }
+    }
+
+    async function loadPaymentTypes() {
+      const { data, error } = await supabase
+        .from('payment_types')
+        .select('id, code, name, requires_reference, active')
+        .eq('active', true)
+        .order('name', { ascending: true });
+
+      if (error) {
+        availablePaymentTypes = [];
+        editPaymentType.innerHTML = '<option value="">Error cargando tipos</option>';
+        updateEditReferenceVisibility();
+        return;
+      }
+
+      availablePaymentTypes = data || [];
+      editPaymentType.innerHTML = '';
+
+      if (!availablePaymentTypes.length) {
+        editPaymentType.innerHTML = '<option value="">Sin tipos de pago</option>';
+        updateEditReferenceVisibility();
+        return;
+      }
+
+      availablePaymentTypes.forEach((type) => {
+        const option = document.createElement('option');
+        option.value = type.id;
+        option.textContent = type.name;
+        editPaymentType.appendChild(option);
+      });
+
+      const defaultType = availablePaymentTypes.find((type) => type.code === 'pago_movil') || availablePaymentTypes[0];
+      if (defaultType) {
+        editPaymentType.value = defaultType.id;
+      }
+
+      updateEditReferenceVisibility();
+    }
 
     async function loadPendingPayments() {
       pendingPaymentsList.innerHTML = '<p class="text-gray-400">Cargando pagos...</p>';
 
       const { data } = await supabase
         .from('payments')
-        .select('*, exams(title)')
+        .select('*, exams(title), payment_types(id, code, name, requires_reference)')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
@@ -45,12 +102,15 @@ export default function AdminPageIsland() {
           const item = document.createElement('div');
           item.className = 'bg-gray-700 p-4 rounded flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-gray-650 transition';
           const examTitle = p.exams ? p.exams.title : 'Examen eliminado';
+          const paymentTypeName = p.payment_types ? p.payment_types.name : 'Sin tipo';
           const noteHtml = p.note ? `<div class="mt-2 p-2 bg-gray-800 rounded text-sm text-yellow-100 border-l-2 border-yellow-500"><span class="font-bold text-xs uppercase text-yellow-500 block">Nota del usuario:</span>${p.note}</div>` : '';
+          const referenceText = p.reference ? `<span class="font-mono text-yellow-300">${p.reference}</span>` : '<span class="text-gray-400 italic">Sin referencia</span>';
 
           item.innerHTML = `
             <div class="flex-1">
               <div class="font-bold text-white text-lg">${p.names}</div>
-              <div class="text-sm text-gray-300">Ref: <span class="font-mono text-yellow-300">${p.reference}</span></div>
+              <div class="text-sm text-gray-300">Ref: ${referenceText}</div>
+              <div class="text-xs text-gray-400 mt-1">Tipo: <span class="text-white">${paymentTypeName}</span></div>
               <div class="text-xs text-gray-400 mt-1">Examen: <span class="text-white">${examTitle}</span> (Bs ${p.amount})</div>
               ${noteHtml}
               <div class="text-xs text-gray-500 mt-1">${new Date(p.created_at).toLocaleString()}</div>
@@ -111,7 +171,7 @@ export default function AdminPageIsland() {
 
       let query = supabase
         .from('payments')
-        .select('id, names, reference, note, status, amount, created_at, exam_id, exams(title)')
+        .select('id, names, reference, note, status, amount, created_at, exam_id, payment_type_id, exams(title), payment_types(id, code, name, requires_reference)')
         .order('created_at', { ascending: false });
 
       if (selectedExamId && selectedExamId !== 'all') {
@@ -145,11 +205,13 @@ export default function AdminPageIsland() {
 
         const noteText = payment.note ? `<div class="text-xs text-gray-300 mt-1">Nota: ${payment.note}</div>` : '';
         const examTitle = payment.exams ? payment.exams.title : 'Examen';
+        const paymentTypeName = payment.payment_types ? payment.payment_types.name : 'Sin tipo';
+        const referenceText = payment.reference ? payment.reference : 'Sin referencia';
 
         item.innerHTML = `
           <div class="flex-1">
             <div class="font-semibold text-white">${payment.names}</div>
-            <div class="text-xs text-gray-300 mt-1">Ref: ${payment.reference} · Examen: ${examTitle}</div>
+            <div class="text-xs text-gray-300 mt-1">Ref: ${referenceText} · Tipo: ${paymentTypeName} · Examen: ${examTitle}</div>
             <div class="text-xs text-gray-400 mt-1">${new Date(payment.created_at).toLocaleString()} · Monto: Bs ${payment.amount}</div>
             ${noteText}
           </div>
@@ -293,6 +355,10 @@ export default function AdminPageIsland() {
       editPaymentReference.value = payment.reference || '';
       editPaymentNote.value = payment.note || '';
       editPaymentStatus.value = payment.status || 'pending';
+      if (payment.payment_type_id) {
+        editPaymentType.value = payment.payment_type_id;
+      }
+      updateEditReferenceVisibility();
       paymentEditSection.classList.remove('hidden');
       paymentEditSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
@@ -302,11 +368,26 @@ export default function AdminPageIsland() {
     window.savePaymentEdit = async () => {
       if (!editingPaymentId) return;
 
+      const selectedType = getPaymentTypeById(editPaymentType.value);
+      if (!selectedType) {
+        alert('Selecciona un tipo de pago válido.');
+        return;
+      }
+
+      const requiresReference = selectedType.requires_reference;
+      const trimmedReference = editPaymentReference.value.trim();
+
+      if (requiresReference && !trimmedReference) {
+        alert('La referencia es obligatoria para este tipo de pago.');
+        return;
+      }
+
       const updates = {
         names: editPaymentNames.value.trim(),
-        reference: editPaymentReference.value.trim(),
+        reference: requiresReference ? trimmedReference : null,
         note: editPaymentNote.value.trim(),
         status: editPaymentStatus.value,
+        payment_type_id: selectedType.id,
       };
 
       const { error } = await supabase
@@ -372,6 +453,7 @@ export default function AdminPageIsland() {
 
     paymentsExamFilter.addEventListener('change', loadPaymentsByExam);
     copyExamListBtn.addEventListener('click', copyExamNamesList);
+    editPaymentType.addEventListener('change', updateEditReferenceVisibility);
 
     addExamForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -407,6 +489,7 @@ export default function AdminPageIsland() {
     const onAuthState = (event) => {
       const session = event.detail?.session;
       if (session) {
+        loadPaymentTypes();
         loadExams();
         loadPendingPayments();
         loadPaymentExamFilter();
@@ -417,6 +500,7 @@ export default function AdminPageIsland() {
         pendingPaymentsList.innerHTML = '';
         paymentsByExamList.innerHTML = '';
         paymentsExamFilter.innerHTML = '<option value="">Inicia sesión para cargar exámenes</option>';
+        editPaymentType.innerHTML = '<option value="">Inicia sesión para cargar tipos</option>';
         paymentEditSection.classList.add('hidden');
       }
     };
@@ -432,6 +516,7 @@ export default function AdminPageIsland() {
     return () => {
       paymentsExamFilter.removeEventListener('change', loadPaymentsByExam);
       copyExamListBtn.removeEventListener('click', copyExamNamesList);
+      editPaymentType.removeEventListener('change', updateEditReferenceVisibility);
       window.removeEventListener('admin-auth-state', onAuthState);
     };
   }, []);
