@@ -6,10 +6,6 @@ export default function AdminPageIsland() {
   useEffect(() => {
     createIcons({ icons });
 
-    const loginSection = document.getElementById('login-section');
-    const adminSection = document.getElementById('admin-section');
-    const loginForm = document.getElementById('login-form');
-    const logoutBtn = document.getElementById('logout-btn');
     const addExamForm = document.getElementById('add-exam-form');
     const examsList = document.getElementById('exams-list');
     const pendingPaymentsList = document.getElementById('pending-payments-list');
@@ -28,16 +24,6 @@ export default function AdminPageIsland() {
 
     let allPaymentsForExam = [];
     let editingPaymentId = null;
-
-    function showLogin() {
-      loginSection.classList.remove('hidden');
-      adminSection.classList.add('hidden');
-    }
-
-    function showAdminPanel() {
-      loginSection.classList.add('hidden');
-      adminSection.classList.remove('hidden');
-    }
 
     async function loadPendingPayments() {
       pendingPaymentsList.innerHTML = '<p class="text-gray-400">Cargando pagos...</p>';
@@ -231,21 +217,6 @@ export default function AdminPageIsland() {
       }
     }
 
-    async function checkSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session) {
-        showAdminPanel();
-        loadExams();
-        loadPendingPayments();
-        loadPaymentExamFilter();
-      } else {
-        showLogin();
-      }
-    }
-
     async function copyExamNamesList() {
       if (!allPaymentsForExam.length) {
         alert('No hay pagos para copiar en este examen.');
@@ -402,33 +373,6 @@ export default function AdminPageIsland() {
     paymentsExamFilter.addEventListener('change', loadPaymentsByExam);
     copyExamListBtn.addEventListener('click', copyExamNamesList);
 
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const emailInput = document.getElementById('email');
-      const passwordInput = document.getElementById('password');
-      const email = emailInput.value.trim().toLowerCase();
-      const password = passwordInput.value;
-
-      emailInput.value = email;
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        if (error.message === 'Invalid login credentials') {
-          alert('Credenciales inválidas. Verifica correo y contraseña.');
-          return;
-        }
-        alert(`Error: ${error.message}`);
-      }
-    });
-
-    logoutBtn.addEventListener('click', async () => {
-      await supabase.auth.signOut();
-    });
-
     addExamForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = examIdInput.value;
@@ -459,18 +403,37 @@ export default function AdminPageIsland() {
       }
     });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+
+    const onAuthState = (event) => {
+      const session = event.detail?.session;
       if (session) {
-        showAdminPanel();
         loadExams();
         loadPendingPayments();
         loadPaymentExamFilter();
       } else {
-        showLogin();
+        allPaymentsForExam = [];
+        editingPaymentId = null;
+        examsList.innerHTML = '';
+        pendingPaymentsList.innerHTML = '';
+        paymentsByExamList.innerHTML = '';
+        paymentsExamFilter.innerHTML = '<option value="">Inicia sesión para cargar exámenes</option>';
+        paymentEditSection.classList.add('hidden');
+      }
+    };
+
+    window.addEventListener('admin-auth-state', onAuthState);
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        onAuthState({ detail: { session } });
       }
     });
 
-    checkSession();
+    return () => {
+      paymentsExamFilter.removeEventListener('change', loadPaymentsByExam);
+      copyExamListBtn.removeEventListener('click', copyExamNamesList);
+      window.removeEventListener('admin-auth-state', onAuthState);
+    };
   }, []);
 
   return null;

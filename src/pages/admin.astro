@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import AdminAuthIsland from '../components/AdminAuthIsland.jsx';
 import AdminPageIsland from '../components/AdminPageIsland.jsx';
 ---
 <BaseLayout
@@ -128,5 +129,6 @@ import AdminPageIsland from '../components/AdminPageIsland.jsx';
         </div>
     </div>
 
+    <AdminAuthIsland client:load />
     <AdminPageIsland client:load />
 </BaseLayout>
