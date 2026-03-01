@@ -1,0 +1,469 @@
+---
+import '../styles/global.css';
+---
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Pago - Examen</title>
+</head>
+<body class="bg-slate-900 min-h-screen font-sans text-slate-200">
+
+    <!-- Contenedor Principal -->
+    <div class="max-w-3xl mx-auto px-3 py-4 sm:px-4 md:p-8">
+        <!-- Encabezado -->
+        <header class="text-center mb-8 md:mb-10">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-indigo-400 mb-2">Registro de Pago</h1>
+            <p class="text-sm sm:text-base text-slate-400">Selecciona tu examen y registra tu pago</p>
+        </header>
+
+        <!-- Sección: Selección de Examen -->
+        <section class="bg-indigo-900/40 rounded-2xl border border-indigo-500/30 p-4 sm:p-5 md:p-6 mb-6 md:mb-8">
+            <h2 class="text-lg sm:text-xl font-semibold text-indigo-100 mb-4 flex items-center gap-2">
+                <i data-lucide="book-open" class="text-indigo-400"></i> 1. Selecciona el Examen
+            </h2>
+            <div id="exams-container" class="grid grid-cols-1 gap-4">
+                <p class="text-slate-400 italic">Cargando exámenes disponibles...</p>
+            </div>
+        </section>
+
+        <!-- Sección: Lista de Pagos Realizados -->
+        <section class="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 p-4 sm:p-5 md:p-6 mb-6 md:mb-8">
+            <div class="flex items-center gap-2 mb-4">
+                <i data-lucide="users" class="text-indigo-500"></i>
+                <h2 class="text-lg sm:text-xl font-semibold text-slate-100">Integrantes que ya pagaron</h2>
+            </div>
+            <div class="bg-slate-900 rounded-xl border border-slate-700 p-3 sm:p-4 max-h-72 overflow-y-auto">
+                <ul id="payers-list" class="space-y-3">
+                    <!-- Los elementos de la lista se generarán dinámicamente con JavaScript -->
+                    <li class="text-center text-slate-500 py-4 italic" id="empty-state">
+                        Nadie ha registrado su pago todavía.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Sección: Datos de Pago Móvil -->
+        <section class="bg-indigo-600 rounded-2xl shadow-md text-white p-4 sm:p-5 md:p-6 mb-6 md:mb-8 relative overflow-hidden">
+            <!-- Círculos decorativos de fondo -->
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-10 rounded-full"></div>
+            <div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-16 h-16 bg-white opacity-10 rounded-full"></div>
+            <div class="relative z-10">
+                <div class="flex items-center gap-2 mb-5 sm:mb-6">
+                    <i data-lucide="smartphone" class="text-indigo-200"></i>
+                    <h2 class="text-lg sm:text-xl font-semibold">Datos de Pago Móvil</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Banco -->
+                    <div class="bg-indigo-700/50 rounded-lg p-3 flex justify-between items-center backdrop-blur-sm">
+                        <div>
+                            <p class="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Banco</p>
+                            <p class="font-medium" id="bank-data">0102 - Banco de Venezuela</p>
+                        </div>
+                        <button onclick="copyToClipboard('0102', 'Banco')" class="p-2 hover:bg-indigo-600 rounded-lg transition-colors" title="Copiar Banco">
+                            <i data-lucide="copy" class="w-5 h-5 text-indigo-200 hover:text-white"></i>
+                        </button>
+                    </div>
+
+                    <!-- Teléfono -->
+                    <div class="bg-indigo-700/50 rounded-lg p-3 flex justify-between items-center backdrop-blur-sm">
+                        <div>
+                            <p class="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Teléfono</p>
+                            <p class="font-medium" id="phone-data">0426-2498651</p>
+                        </div>
+                        <button onclick="copyToClipboard('04262498651', 'Teléfono')" class="p-2 hover:bg-indigo-600 rounded-lg transition-colors" title="Copiar Teléfono">
+                            <i data-lucide="copy" class="w-5 h-5 text-indigo-200 hover:text-white"></i>
+                        </button>
+                    </div>
+
+                    <!-- Cédula -->
+                    <div class="bg-indigo-700/50 rounded-lg p-3 flex justify-between items-center backdrop-blur-sm">
+                        <div>
+                            <p class="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Cédula</p>
+                            <p class="font-medium" id="id-data">V-31.366.298</p>
+                        </div>
+                        <button onclick="copyToClipboard('V-31.366.298', 'Cédula')" class="p-2 hover:bg-indigo-600 rounded-lg transition-colors" title="Copiar Cédula">
+                            <i data-lucide="copy" class="w-5 h-5 text-indigo-200 hover:text-white"></i>
+                        </button>
+                    </div>
+
+                    <!-- Monto (Dinámico) -->
+                    <div class="bg-indigo-700/50 rounded-lg p-3 flex justify-between items-center backdrop-blur-sm">
+                        <div>
+                            <p class="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Monto a Pagar</p>
+                            <p class="font-medium text-xl text-emerald-300" id="amount-display">Selecciona un examen</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="copyPaymentData()" class="mt-4 w-full bg-indigo-700 hover:bg-indigo-800 border border-indigo-400/30 rounded-lg py-3 px-4 flex items-center justify-center gap-2 transition-colors text-sm sm:text-base text-center">
+                    <i data-lucide="copy-check" class="w-5 h-5 text-indigo-200"></i>
+                    <span class="font-semibold">Copiar todos los datos para pago rápido</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Botón "Ya Pagué" -->
+        <div class="text-center mb-6 md:mb-8" id="action-button-container">
+            <button id="pay-button" onclick="toggleForm()" disabled class="w-full sm:w-auto bg-slate-600 cursor-not-allowed text-white font-bold text-base sm:text-lg py-3 sm:py-4 px-6 sm:px-10 rounded-full shadow-lg transform transition flex items-center justify-center gap-2 mx-auto">
+                <i data-lucide="check-circle" class="w-6 h-6"></i>
+                Selecciona un examen primero
+            </button>
+        </div>
+
+        <!-- Sección: Formulario de Reporte (Oculto por defecto) -->
+        <section id="form-section" class="hidden bg-slate-800 rounded-2xl shadow-sm border border-slate-700 p-4 sm:p-5 md:p-6 fade-in mb-8">
+            <div class="flex items-center gap-2 mb-6 border-b border-slate-700 pb-4">
+                <i data-lucide="send" class="text-indigo-400"></i>
+                <h2 class="text-xl font-semibold text-slate-100">Reportar Pago</h2>
+            </div>
+
+            <form id="payment-form" onsubmit="submitPayment(event)" class="space-y-5">
+                <!-- Nombres -->
+                <div>
+                    <label for="names" class="block text-sm font-medium text-slate-300 mb-1">Nombres de los integrantes (separados por coma)</label>
+                    <textarea id="names" required rows="2" placeholder="Ej: Juan Pérez, María Gómez..." class="w-full px-4 py-3 bg-slate-900 rounded-lg border border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none resize-none"></textarea>
+                </div>
+
+                <!-- Referencia -->
+                <div>
+                    <label for="reference" class="block text-sm font-medium text-slate-300 mb-1">Número de Referencia (Últimos 6 dígitos)</label>
+                    <input type="text" id="reference" required placeholder="Ej: 123456" pattern="[0-9]{4,10}" class="w-full px-4 py-3 bg-slate-900 rounded-lg border border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"></input>
+                </div>
+
+                <!-- Nota (Opcional) -->
+                <div>
+                    <label for="note" class="block text-sm font-medium text-slate-300 mb-1">Nota / Observación (Opcional)</label>
+                    <textarea id="note" rows="2" placeholder="Algún comentario adicional..." class="w-full px-4 py-3 bg-slate-900 rounded-lg border border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none resize-none"></textarea>
+                </div>
+
+                <!-- Capture de pantalla -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Capture o Comprobante (Opcional)</label>
+                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-600 border-dashed rounded-lg hover:border-indigo-400 transition-colors bg-slate-900 cursor-pointer" onclick="document.getElementById('file-upload').click()">
+                        <div class="space-y-1 text-center">
+                            <i data-lucide="image" class="mx-auto h-12 w-12 text-slate-500"></i>
+                            <div class="flex text-sm text-slate-400 justify-center">
+                                <span class="relative rounded-md font-medium text-indigo-400 hover:text-indigo-300 focus-within:outline-none">
+                                    <span>Sube un archivo</span>
+                                    <input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/*" onchange="updateFileName(this)">
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500" id="file-name">PNG, JPG hasta 5MB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones del formulario -->
+                <div class="flex flex-col sm:flex-row gap-3 pt-4">
+                    <button type="button" onclick="toggleForm()" class="flex-1 py-3 px-4 border border-slate-600 text-slate-300 font-medium rounded-lg hover:bg-slate-700 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg shadow-md transition-colors flex justify-center items-center gap-2">
+                        <i data-lucide="save" class="w-5 h-5"></i>
+                        Enviar Reporte
+                    </button>
+                </div>
+            </form>
+        </section>
+
+    </div>
+
+    <!-- Contenedor para Notificaciones (Toasts) -->
+    <div id="toast-container" class="fixed inset-x-3 bottom-4 md:inset-auto md:bottom-5 md:right-5 z-50 flex flex-col gap-3"></div>
+
+    <!-- Modal de validación -->
+    <div id="validation-modal" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm items-center justify-center px-4">
+        <div class="w-full max-w-sm bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-2xl">
+            <div class="mx-auto mb-4 w-12 h-12 rounded-full border-4 border-indigo-300 border-t-indigo-600 animate-spin"></div>
+            <h3 class="text-lg font-semibold text-slate-100">Validando pago...</h3>
+            <p class="text-sm text-slate-400 mt-1">Espera un momento, estamos procesando tu reporte.</p>
+        </div>
+    </div>
+
+    <script>
+        // @ts-nocheck
+        import { supabase } from '../supabaseClient';
+        import { createIcons, icons } from 'lucide';
+
+        createIcons({ icons });
+
+        let selectedExam = null;
+
+        const formSection = document.getElementById('form-section');
+        const actionBtnContainer = document.getElementById('action-button-container');
+        const payersList = document.getElementById('payers-list');
+        const paymentForm = document.getElementById('payment-form');
+        const examsContainer = document.getElementById('exams-container');
+        const amountDisplay = document.getElementById('amount-display');
+        const payButton = document.getElementById('pay-button');
+        const validationModal = document.getElementById('validation-modal');
+
+        window.toggleForm = toggleForm;
+        window.submitPayment = submitPayment;
+        window.copyToClipboard = copyToClipboard;
+        window.updateFileName = updateFileName;
+        window.copyPaymentData = copyPaymentData;
+
+        async function loadExams() {
+            examsContainer.innerHTML = '<p class="text-slate-400 italic">Cargando...</p>';
+
+            const { data, error } = await supabase
+                .from('exams')
+                .select('*')
+                .eq('active', true)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                examsContainer.innerHTML = '<p class="text-red-400">Error al cargar exámenes.</p>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                examsContainer.innerHTML = '<p class="text-slate-400">No hay exámenes activos en este momento.</p>';
+                return;
+            }
+
+            examsContainer.innerHTML = '';
+            data.forEach((exam) => {
+                const el = document.createElement('div');
+                el.className = 'cursor-pointer border border-slate-600 bg-slate-800 p-4 rounded-lg hover:border-indigo-500 transition-all exam-card';
+                el.onclick = () => selectExam(exam.id, exam.price, exam.title, el);
+
+                el.innerHTML = `
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                        <h3 class="font-bold text-base sm:text-lg text-white break-words">${exam.title}</h3>
+                        <span class="text-emerald-400 font-bold text-lg sm:text-xl">Bs ${exam.price}</span>
+                    </div>
+                    <p class="text-slate-400 text-sm mt-1">${exam.description || ''}</p>
+                `;
+
+                examsContainer.appendChild(el);
+            });
+
+            createIcons({ icons });
+        }
+
+        function selectExam(id, price, title, element) {
+            selectedExam = { id, price, title };
+
+            document.querySelectorAll('.exam-card').forEach((card) => {
+                card.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-900/20');
+                card.classList.add('bg-slate-800');
+            });
+
+            element.classList.remove('bg-slate-800');
+            element.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-900/20');
+
+            amountDisplay.textContent = `Bs ${price}`;
+
+            payButton.disabled = false;
+            payButton.classList.remove('bg-slate-600', 'cursor-not-allowed');
+            payButton.classList.add('bg-emerald-500', 'hover:bg-emerald-600', 'shadow-emerald-500/30', 'hover:-translate-y-1');
+            payButton.innerHTML = `<i data-lucide="check-circle" class="w-6 h-6"></i> ¡Ya pagué el de ${title}!`;
+            createIcons({ icons });
+        }
+
+        async function loadPayments() {
+            payersList.innerHTML = '<p class="text-center text-slate-500 py-4 italic">Cargando lista...</p>';
+
+            const { data, error } = await supabase
+                .from('payments')
+                .select('names, reference, created_at, status, exams!inner(title, active)')
+                .in('status', ['approved', 'pending'])
+                .eq('exams.active', true)
+                .order('created_at', { ascending: false });
+
+            payersList.innerHTML = '';
+
+            if (error) {
+                payersList.innerHTML = '<li class="text-center text-red-400 py-4 italic">No se pudo cargar la lista de pagos.</li>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                payersList.innerHTML = '<li class="text-center text-slate-500 py-4 italic" id="empty-state">Nadie ha registrado su pago todavía.</li>';
+                return;
+            }
+
+            data.forEach((payment) => {
+                const li = document.createElement('li');
+                li.className = 'flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-sm';
+
+                const date = new Date(payment.created_at).toLocaleDateString();
+                const examTitle = payment.exams ? payment.exams.title : 'Examen';
+
+                const isApproved = payment.status === 'approved';
+                const statusColor = isApproved ? 'emerald' : 'amber';
+                const statusIcon = isApproved ? 'check' : 'clock';
+                const statusText = isApproved ? 'Confirmado' : 'Pendiente';
+
+                li.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-${statusColor}-900/40 flex items-center justify-center text-${statusColor}-400 border border-${statusColor}-800/50">
+                            <i data-lucide="${statusIcon}" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-100">${payment.names}</p>
+                            <p class="text-xs text-slate-400">Ref: ****${String(payment.reference).slice(-4)} • ${examTitle}</p>
+                            <p class="text-xs text-${statusColor}-400 font-medium md:hidden">${statusText}</p>
+                        </div>
+                    </div>
+                    <div class="w-full sm:w-auto text-left sm:text-right">
+                        <div class="text-xs text-slate-500 mb-1">${date}</div>
+                        <span class="hidden md:inline-block px-2 py-0.5 rounded text-xs font-medium bg-${statusColor}-900/30 text-${statusColor}-400 border border-${statusColor}-700/50">
+                            ${statusText}
+                        </span>
+                    </div>
+                `;
+
+                payersList.appendChild(li);
+            });
+
+            createIcons({ icons });
+        }
+
+        async function submitPayment(event) {
+            event.preventDefault();
+
+            if (!selectedExam) {
+                showToast('Por favor selecciona un examen primero', 'error');
+                return;
+            }
+
+            const names = document.getElementById('names').value;
+            const reference = document.getElementById('reference').value;
+            const note = document.getElementById('note').value;
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Enviando...';
+
+            await showValidationModalFor2s();
+
+            const { error } = await supabase
+                .from('payments')
+                .insert([
+                    {
+                        names,
+                        reference,
+                        note,
+                        exam_id: selectedExam.id,
+                        amount: selectedExam.price,
+                        status: 'pending',
+                    },
+                ]);
+
+            if (error) {
+                showToast(`Error al enviar: ${error.message}`, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                return;
+            }
+
+            showToast('¡Pago registrado! Espera la aprobación del admin.', 'success');
+            paymentForm.reset();
+            toggleForm();
+            loadPayments();
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+
+        async function showValidationModalFor2s() {
+            validationModal.classList.remove('hidden');
+            validationModal.classList.add('flex');
+
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            validationModal.classList.remove('flex');
+            validationModal.classList.add('hidden');
+        }
+
+        function toggleForm() {
+            if (formSection.classList.contains('hidden')) {
+                formSection.classList.remove('hidden');
+                actionBtnContainer.classList.add('hidden');
+                formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                formSection.classList.add('hidden');
+                actionBtnContainer.classList.remove('hidden');
+                paymentForm.reset();
+            }
+        }
+
+        function updateFileName(input) {
+            const fileNameDisplay = document.getElementById('file-name');
+            if (input.files && input.files.length > 0) {
+                fileNameDisplay.innerText = input.files[0].name;
+                fileNameDisplay.classList.add('text-indigo-400', 'font-medium');
+            } else {
+                fileNameDisplay.innerText = 'PNG, JPG hasta 5MB';
+                fileNameDisplay.classList.remove('text-indigo-400', 'font-medium');
+            }
+        }
+
+        function copyToClipboard(text, fieldName) {
+            navigator.clipboard
+                .writeText(text)
+                .then(() => showToast(`${fieldName} copiado`, 'info'))
+                .catch(() => showToast('Error al copiar', 'error'));
+        }
+
+        function copyPaymentData() {
+            const bankRaw = document.getElementById('bank-data').textContent || '';
+            const phoneRaw = document.getElementById('phone-data').textContent || '';
+            const idCardRaw = document.getElementById('id-data').textContent || '';
+
+            if (!selectedExam) {
+                showToast('Selecciona un examen para incluir el monto', 'error');
+                return;
+            }
+
+            const bankCode = bankRaw.replace(/\D/g, '').slice(0, 4);
+            const phone = phoneRaw.replace(/\D/g, '');
+            const idCard = idCardRaw.replace(/\D/g, '');
+            const amount = Number(selectedExam.price || 0).toFixed(2);
+
+            const quickText = [
+                `Banco: ${bankCode}`,
+                `Teléfono: ${phone}`,
+                `Cédula: ${idCard}`,
+                `Monto: Bs ${amount}`,
+            ].join('\n');
+
+            navigator.clipboard
+                .writeText(quickText)
+                .then(() => showToast('Datos copiados en formato compatible con BDV', 'success'))
+                .catch(() => showToast('Error al copiar los datos', 'error'));
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-slate-800';
+            const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info';
+
+            toast.className = `${bgClass} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-sm`;
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i><p class="text-sm font-medium">${message}</p>`;
+
+            container.appendChild(toast);
+            createIcons({ icons });
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    if (container.contains(toast)) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        loadExams();
+        loadPayments();
+    </script>
+</body>
+</htm
