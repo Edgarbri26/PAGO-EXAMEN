@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { createIcons, icons } from 'lucide';
 
+const CASH_REFERENCE = '777777';
+
 export default function AdminPageIsland() {
   useEffect(() => {
     createIcons({ icons });
@@ -40,7 +42,7 @@ export default function AdminPageIsland() {
         editPaymentReferenceWrap.classList.remove('hidden');
       } else {
         editPaymentReferenceWrap.classList.add('hidden');
-        editPaymentReference.value = '';
+        editPaymentReference.value = CASH_REFERENCE;
       }
     }
 
@@ -384,7 +386,7 @@ export default function AdminPageIsland() {
 
       const updates = {
         names: editPaymentNames.value.trim(),
-        reference: requiresReference ? trimmedReference : null,
+        reference: requiresReference ? trimmedReference : CASH_REFERENCE,
         note: editPaymentNote.value.trim(),
         status: editPaymentStatus.value,
         payment_type_id: selectedType.id,

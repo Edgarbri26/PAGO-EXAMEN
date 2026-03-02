@@ -22,6 +22,7 @@ const PHONE_LABEL = '0426-2498651';
 const PHONE_VALUE = '04262498651';
 const ID_LABEL = 'V-31.366.298';
 const ID_VALUE = '3166298';
+const CASH_REFERENCE = '777777';
 
 export default function PublicPageApp() {
   const [exams, setExams] = useState([]);
@@ -186,7 +187,7 @@ export default function PublicPageApp() {
     const { error } = await supabase.from('payments').insert([
       {
         names: form.names,
-        reference: requiresReference ? form.reference.trim() : null,
+        reference: requiresReference ? form.reference.trim() : CASH_REFERENCE,
         note: form.note,
         exam_id: selectedExam.id,
         amount: selectedExam.price,
