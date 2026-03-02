@@ -106,12 +106,12 @@ export default function AdminPageIsland() {
           const examTitle = p.exams ? p.exams.title : 'Examen eliminado';
           const paymentTypeName = p.payment_types ? p.payment_types.name : 'Sin tipo';
           const noteHtml = p.note ? `<div class="mt-2 p-2 bg-gray-800 rounded text-sm text-yellow-100 border-l-2 border-yellow-500"><span class="font-bold text-xs uppercase text-yellow-500 block">Nota del usuario:</span>${p.note}</div>` : '';
-          const referenceText = p.reference ? `<span class="font-mono text-yellow-300">${p.reference}</span>` : '<span class="text-gray-400 italic">Sin referencia</span>';
+          const referenceText = p.reference ? `<span class="font-mono text-yellow-300">${p.reference}</span> <button onclick="window.copyToClipboard('${p.reference}')" class="ml-2 bg-gray-600 hover:bg-gray-500 text-white rounded px-2 py-0.5 text-xs transition inline-flex items-center gap-1" title="Copiar referencia"><i data-lucide="copy" class="w-3 h-3"></i> Copiar</button>` : '<span class="text-gray-400 italic">Sin referencia</span>';
 
           item.innerHTML = `
             <div class="flex-1">
               <div class="font-bold text-white text-lg">${p.names}</div>
-              <div class="text-sm text-gray-300">Ref: ${referenceText}</div>
+              <div class="text-sm text-gray-300 flex items-center gap-1">Ref: ${referenceText}</div>
               <div class="text-xs text-gray-400 mt-1">Tipo: <span class="text-white">${paymentTypeName}</span></div>
               <div class="text-xs text-gray-400 mt-1">Examen: <span class="text-white">${examTitle}</span> (Bs ${p.amount})</div>
               ${noteHtml}
@@ -328,6 +328,14 @@ export default function AdminPageIsland() {
       editingPaymentId = null;
       paymentEditSection.classList.add('hidden');
     }
+
+    window.copyToClipboard = (text) => {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Referencia copiada: ' + text);
+      }).catch(err => {
+        console.error('Error al copiar: ', err);
+      });
+    };
 
     window.updatePaymentStatus = async (id, newStatus) => {
       if (!confirm(`¿Estás seguro de marcar este pago como ${newStatus === 'approved' ? 'APROBADO' : 'RECHAZADO'}?`)) return;
